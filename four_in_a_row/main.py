@@ -1,17 +1,25 @@
 # Here we will implement the assignment using python as our programming language.
 
+# Constants
+BOARD_WIDTH = 5
+BOARD_HEIGHT = 10
+
 # Give 1-based index or any based index in python by manipulating the base parameter
 def index_notation(index, base=1):
     return index + base
 
 class Game:
-    def __init__(self, *players, size=(10,5)):
+    def __init__(self, *players, size=(BOARD_WIDTH,BOARD_HEIGHT)):
         self.players = players
-        self.pc = PlayerController(players)
+        self.pc = PlayerController(players, board_size=size)
         self.board = Board(size)
         self.move = 0
         self.title = "Four In A Row"
         self.title_offset = int((self.board.w*3)/2) - int(len(self.title)/2)
+
+        self.start()
+        while not self.board.has_won():
+            self.next_move()
 
     def start(self):
         self.show_title()
@@ -26,8 +34,11 @@ class Game:
     def next_move(self):
         self.move += 1
         move_text = f"Move {self.move}:"
-        player, slot = self.pc.get_turn()
-        self.board.place(player, slot)
+        succes = False
+        while not succes:
+            player, slot = self.pc.get_turn()
+            succes = self.board.place(player, slot)
+        self.pc.update_turn()
         # maybe center move_text in the future
         print(f"{move_text}\n\n")
         print(self.board)
@@ -71,6 +82,10 @@ class Board:
 
         if not slot_full(slot):
             self.board[get_row(slot)][slot] = player.symbol
+            return True
+        else:
+            print("That slot is full please try another")
+            return False
 
     def has_won(self):
         return False
@@ -79,27 +94,32 @@ class Board:
 class Player:
     def __init__(self, symbol):
         self.symbol = symbol
-    def ask(self, index=1):
+    def ask(self, index=1, limit=0):
         slot = None
-        while slot == None:
+        while slot == None or (slot > BOARD_WIDTH or slot < 1):
             try:
                 slot = int(input(f"What slot do you want to select player {index}? (ex. 1, 2)")) - 1
+                if slot > limit or slot < 1:
+                    slot = None
+                    print(f"That is not on the board please choose a number between 1 and {BOARD_WIDTH}!")
             except:
                 print("That is not a number, please try again ")
         return slot
 
-# This player controller is designed for 2 players, there is no support currently for more.
+# This player controller is designed for 2 players, there is no support currently for more (and that is also not necessary).
 class PlayerController:
-    def __init__(self, players):
+    def __init__(self, players, board_size=(BOARD_WIDTH, BOARD_HEIGHT)):
         self.turn_index = 0
+        self.board_size = board_size
         self.players = players
     def get_turn(self):
         turn = self.turn_index
         player = self.players[turn]
-        slot = player.ask(index_notation(self.turn_index))
-        self.turn_index = 1 if self.turn_index == 0 else 0
+        slot = player.ask(index_notation(self.turn_index), self.board_size[0])
 
         return player, slot
+    def update_turn(self):
+        self.turn_index = 1 if self.turn_index == 0 else 0
 
 
 
@@ -124,8 +144,6 @@ if __name__ == "__main__":
     #    pc.ask_player()
 
     # Game testing
-    player1 = Player("P")
+    player1 = Player("X")
     player2 = Player("O")
     game = Game(player1,player2, size=(5,5))
-    game.start()
-    game.next_move()
