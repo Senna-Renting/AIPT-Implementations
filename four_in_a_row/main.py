@@ -1,4 +1,6 @@
 # Here we will implement the assignment using python as our programming language.
+from copy import deepcopy
+
 
 # Constants
 BOARD_WIDTH = 5
@@ -10,11 +12,11 @@ def index_notation(index, base=1):
     return index + base
 
 class Game:
-    def __init__(self, *players, size=(BOARD_WIDTH,BOARD_HEIGHT), gameN=IN_A_ROW):
+    def __init__(self, *players, size=(BOARD_WIDTH,BOARD_HEIGHT), game_n=IN_A_ROW):
         self.players = players
         self.pc = PlayerController(players, board_size=size)
-        self.gameN = gameN
-        self.board = Board(size, gameN=gameN)
+        self.game_n = game_n
+        self.board = Board(size, game_n=game_n)
         self.move = 0
         self.title = "Four In A Row"
         self.offset = int((self.board.w*3)/2)
@@ -22,10 +24,16 @@ class Game:
         # Starting screen
         self.start()
         # Game loop
-        while not self.board.has_won():
+        while True:
+            if self.board.is_full():
+                # Draw code
+                print("It is a draw!")
+                break
+            if self.board.has_won():
+                # Winning code
+                print(f"{self.get_winner()} has won the game!")
+                break
             self.next_move()
-        # Winning code
-        print(f"{self.get_winner()} has won the game!")
 
     def start(self):
         print(f"Welcome to the game!")
@@ -43,6 +51,7 @@ class Game:
         move_offset = self.offset - int(len(move_text)/2)
         spaces = " "*move_offset
         succes = False
+        print(f"The best choice according to the minmax algorithm would be: {Minimax(self.board, self.pc).get()}")
         while not succes:
             player, slot = self.pc.get_turn()
             succes = self.board.place(player, slot)
@@ -59,9 +68,9 @@ class Game:
                 return player.name
 
 class Board:
-    def __init__(self,size,gameN=IN_A_ROW):
+    def __init__(self,size,game_n=IN_A_ROW):
         (self.w,self.h) = size
-        self.gameN = gameN
+        self.game_n = game_n
         self.board = []
         self.last_played = None # (row, col) of last played symbol
         #Create board
@@ -86,12 +95,18 @@ class Board:
         output += "\n" + border + "\n" + slots + "\n"
         return output
 
-    def place(self, player, slot):
-
-        def get_row(slot):
+    def __eq__(self, other):
+        if self.h != other.h or self.w != other.w:
+            return False
+        else:
             for row in reversed(range(self.h)):
-                if self.board[row][slot] == '~':
-                    return row
+                for col in range(self.w):
+                    if self.board[row][col] != other.board[row][col]:
+                        return False
+            return True
+
+
+    def place(self, player, slot):
 
         def slot_full(slot):
             for row in range(self.h):
@@ -99,14 +114,30 @@ class Board:
                     return False
             return True
 
+        def get_row(slot):
+            for row in reversed(range(self.h)):
+                if self.board[row][slot] == '~':
+                    return row
+
         if not slot_full(slot):
             row = get_row(slot)
             self.board[row][slot] = player.symbol
             self.last_played = (row, slot)
             return True
         else:
-            print("That slot is full please try another")
+            #print("That slot is full please try another")
             return False
+
+    def undo(self):
+        self.board[self.last_played[0]][self.last_played[1]] = "~"
+
+
+    def is_full(self):
+        for row in reversed(range(self.h)):
+            for col in range(self.w):
+                if self.board[row][col] == "~":
+                    return False
+        return True
 
     def has_won(self):
         if self.last_played == None:
@@ -128,7 +159,7 @@ class Board:
 
 
         def is_horizontal():
-            n = self.gameN - 1
+            n = self.game_n - 1
             symbol = self.board[row][col]
             i = 1
             left = True
@@ -156,7 +187,7 @@ class Board:
 
 
         def is_vertical():
-            n = self.gameN - 1
+            n = self.game_n - 1
             symbol = self.board[row][col]
             i = 1
             top = True
@@ -183,7 +214,7 @@ class Board:
             return True
 
         def is_diagonal_down():
-            n = self.gameN - 1
+            n = self.game_n - 1
             symbol = self.board[row][col]
             i = 1
             left_top = True
@@ -209,7 +240,7 @@ class Board:
                         return n == 0
             return True
         def is_diagonal_up():
-            n = self.gameN - 1
+            n = self.game_n - 1
             symbol = self.board[row][col]
             i = 1
             right_top = True
@@ -275,9 +306,110 @@ class PlayerController:
 
 
 class Minimax:
-    pass
+    def __init__(self, board, pc): # state = the current state of the board of the game
+        self.board = board
+        self.pc = pc
 
-# maybe seperate minimax and alphabeta pruning into different classes
+    def dfs_for_score(self, board, pc, layer, is_max):
+        """
+        Computes the best choice for the player given a current board state.
+
+        Parameters:
+        board (two-d list): current board state from where we want to search
+        pc (PlayerController): switches between two players that have been assigned to it.
+        layer (int): keeps track of the depth the function is currently at recursively
+
+        Returns: (int, int) First int is the best score you can get, second one is the best slot you can currently choose
+        """
+        # self.board.w gives the slots you can play
+        options = list(range(self.board.w))
+        scores = list()
+        for i,option in enumerate(options):
+            succes = board.place(pc.get_player(), option)
+            #print(board)
+            # base case for if the player makes a winning move
+            if board.has_won():
+                return self.give_score(layer, option, is_max)
+            elif board.is_full():
+                return self.give_score(layer, option, is_max, board_full=True)
+            # if a move is valid (no full slot or some other constraint)
+            elif succes:
+                pc.update_turn()
+                scores.append(self.dfs_for_score(deepcopy(board), deepcopy(pc), layer+1, not is_max))
+                pc.update_turn()
+                board.undo()
+        # either minimize or maximize depending on the player that is allowed to move
+        return self.get_best_move(scores, is_max, layer)
+
+    def give_score(self, layer, option, is_max, board_full=False):
+        """
+        Computes the score based on the player that is to move, and also has a base case for if an ending state is immediately reached.
+
+        Parameters:
+        layer (int): The depth we are currently looking at in the game tree
+        option (int): The option under consideration (the move we would want to possibly make as a player)
+        is_max (bool): Says whether or not we are in a maximizing state
+        (Optional) board_full (bool): tells the function if the game is in a draw or not
+
+        Returns (int/(int,int)): Either gives the best score ( int ), or it gives the best score together with the move to make ( (int,int ) )
+
+        """
+        if board_full:
+            if layer == 0:
+                return (0,index_notation(option))
+            else:
+                return 0
+        elif is_max:
+            if layer == 0:
+                return (1,index_notation(option))
+            else:
+                return 1
+        else:
+            if layer == 0:
+                return (-1,index_notation(option))
+            else:
+                return -1
+
+    def get_best_move(self, scores, is_max, layer):
+        """
+        Computes the best move to make along with it's best score when it searches through the game tree
+
+        Parameters:
+        scores (list): list with the possible scores you can get from that node.
+        is_max (bool): state that gives you information about whether your in a maximizing or a minimizing state.
+        layer (int): int that gives you your current depth in the game search tree.
+
+        Returns (int/(int,int)): Either gives the best score ( int ), or it gives the best score together with the move to make ( (int,int ) )
+        """
+        if is_max:
+            if len(scores) == 0:
+                return 0
+            else:
+                maxim = max(scores)
+                if layer == 0:
+                    return (maxim, scores.index(maxim))
+                else:
+                    return maxim
+        else:
+            if len(scores) == 0:
+                return 0
+            else:
+                minim = min(scores)
+                if layer == 0:
+                    return (minim, scores.index(minim))
+                else:
+                    return minim
+
+    def get(self):
+        score = self.dfs_for_score(deepcopy(self.board), deepcopy(self.pc), 0, True)
+        return score[1]
+
+
+
+
+
+
+# maybe split minimax and alphabeta pruning into different classes
 
 # class Alphabeta:
 #   pass
@@ -295,6 +427,16 @@ if __name__ == "__main__":
     #    pc.ask_player()
 
     # Game testing
-    player1 = Player("X", "Player 1")
-    player2 = Player("O", "Player 2")
-    game = Game(player1,player2, size=(5,5))
+    #player1 = Player("X", "Player 1")
+    #player2 = Player("O", "Player 2")
+    #game = Game(player1,player2, size=(5,5))
+
+    # Minimax debugging
+    #board = Board(size=(3,3), game_n=3)
+    #p1 = Player("X", "Player1")
+    #p2 = Player("O", "Player2")
+    #pc = PlayerController((p1,p2))
+    #Minimax(board, pc)
+
+    # General testing
+    game = Game(Player("X", "Player2"), Player("O", "Player1"), size=(3,3), game_n=3)
