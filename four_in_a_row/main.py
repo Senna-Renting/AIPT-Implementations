@@ -329,9 +329,13 @@ class Minimax:
             #print(board)
             # base case for if the player makes a winning move
             if board.has_won():
-                return self.give_score(layer, option, is_max)
+                score = self.give_score(layer, option, is_max)
+                scores.append(score)
+                return score
             elif board.is_full():
-                return self.give_score(layer, option, is_max, board_full=True)
+                score = self.give_score(layer, option, is_max, board_full=True)
+                scores.append(score)
+                return score
             # if a move is valid (no full slot or some other constraint)
             elif succes:
                 pc.update_turn()
@@ -382,23 +386,19 @@ class Minimax:
         Returns (int/(int,int)): Either gives the best score ( int ), or it gives the best score together with the move to make ( (int,int ) )
         """
         if is_max:
-            if len(scores) == 0:
-                return 0
+            # len(score) == 0 case has now been removed
+            maxim = max(scores)
+            if layer == 0:
+                return (maxim, index_notation(scores.index(maxim)))
             else:
-                maxim = max(scores)
-                if layer == 0:
-                    return (maxim, scores.index(maxim))
-                else:
-                    return maxim
+                return maxim
         else:
-            if len(scores) == 0:
-                return 0
+            # len(score) == 0 case has now been removed
+            minim = min(scores)
+            if layer == 0:
+                return (minim, index_notation(scores.index(minim)))
             else:
-                minim = min(scores)
-                if layer == 0:
-                    return (minim, scores.index(minim))
-                else:
-                    return minim
+                return minim
 
     def get(self):
         score = self.dfs_for_score(deepcopy(self.board), deepcopy(self.pc), 0, True)
