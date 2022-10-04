@@ -1,4 +1,6 @@
 # Here we will implement the assignment using python as our programming language.
+
+# this module was used to support copying multidimensional lists
 from copy import deepcopy
 
 
@@ -14,8 +16,20 @@ count_complexity = 0
 def index_notation(index, base=1):
     return index + base
 
-class Game:
+class GameOfN:
     def __init__(self, *players, size=(BOARD_WIDTH,BOARD_HEIGHT), game_n=IN_A_ROW, minmax=True, use_alphabeta=False):
+        """
+        Function: Initialize a terminal based game environment for the game Four In A Row, or N In A Row where you can choose the value of N.
+
+        Parameters:
+        *players (args list): An arguments list containing the players as Player objects
+        size (tuple): A tuple containing the width and height of the board respectively
+        game_n (int): An integer that indicates the number in a row that we see as winning
+        minmax (bool): Boolean which determines whether or not to use the minmax heuristic
+        use_alphabeta (bool): Boolean that indicates whether or not we want to use alpha-, beta pruning with the minmax heuristic algorithm
+
+        Returns: None
+        """
         self.players = players
         self.pc = PlayerController(players, board_size=size)
         self.game_n = game_n
@@ -46,13 +60,20 @@ class Game:
             self.next_move()
 
     def start(self):
+        """
+        Function: Print an introductory message before starting the gameplay
+        """
         print(f"Welcome to the game!")
         print("\n")
         print(f"{self.players[0].name}: {self.players[0].symbol}")
         print(f"{self.players[1].name}: {self.players[1].symbol}")
         print("\n")
         print(self.board)
+
     def next_move(self):
+        """
+        Function: Start a new move where another player gets to move after which the resulting board is shown
+        """
         self.move += 1
         move_text = f"Move {self.move}:"
         move_offset = self.offset - int(len(move_text)/2)
@@ -73,6 +94,9 @@ class Game:
         print(self.board)
 
     def get_winner(self):
+        """
+        Function: Get the player that has won based on the last move
+        """
         (row,col) = self.board.last_played
         symbol = self.board.board[row][col]
         for player in self.players:
@@ -80,7 +104,16 @@ class Game:
                 return player.name
 
 class Board:
-    def __init__(self,size,game_n=IN_A_ROW):
+    def __init__(self,size=(BOARD_WIDTH, BOARD_HEIGHT),game_n=IN_A_ROW):
+        """
+        Function: Generate a board for the GameOfN object to play on
+
+        Parameters:
+        size (tuple): A tuple containing the width and height of the board respectively
+        game_n (int): An integer that indicates the number in a row that we see as winning
+
+        Returns: None
+        """
         (self.w,self.h) = size
         self.game_n = game_n
         self.board = []
@@ -93,6 +126,9 @@ class Board:
                 self.board[row].append('~')
 
     def __str__(self):
+        """
+        Function: Give a string representation of the object for when it is printed
+        """
         border = "-"*self.w*3
         title_offset = int(len(border)/2) - int(len(self.title)/2)
         spaces = " "*title_offset
@@ -108,6 +144,15 @@ class Board:
         return output
 
     def __eq__(self, other):
+        """
+        Function: Determine whether two board objects are the same
+
+        Parameters:
+        self: The current object
+        other: The object we are comparing with
+
+        Returns (bool): True if the Board objects are equal according to this function
+        """
         if self.h != other.h or self.w != other.w:
             return False
         else:
@@ -119,14 +164,38 @@ class Board:
 
 
     def place(self, player, slot):
+        """
+        Function: Correctly place a symbol on the board when the player and the slot it wants are given
 
+        Parameters:
+        player (Player): Player object that has requested a slot
+        slot (int): The slot that the player has requested
+
+        Returns (bool): True if it has correctly placed the symbol of the player on the board
+        """
         def slot_full(slot):
+            """
+            Function: Check if a slot of the board is completely full
+
+            Parameters:
+            slot (int): The slot that needs checking
+
+            Returns (bool): True if the slot is found full
+            """
             for row in range(self.h):
                 if self.board[row][slot] == '~':
                     return False
             return True
 
         def get_row(slot):
+            """
+            Function: Get the first free row inside a slot of the board (looking from the bottom to the top of the slot)
+
+            Parameters:
+            slot (int): The slot that needs to be reviewed
+
+            Returns (int): value of the row that is free
+            """
             for row in reversed(range(self.h)):
                 if self.board[row][slot] == '~':
                     return row
@@ -141,10 +210,18 @@ class Board:
             return False
 
     def undo(self):
+        """
+        Function: Undo the last played move on the board
+        """
         self.board[self.last_played[0]][self.last_played[1]] = "~"
 
 
     def is_full(self):
+        """
+        Function: Check if the board is full
+
+        Returns (bool): True if the board is full
+        """
         for row in reversed(range(self.h)):
             for col in range(self.w):
                 if self.board[row][col] == "~":
@@ -152,11 +229,26 @@ class Board:
         return True
 
     def has_won(self):
+        """
+        Function: Check if the board is in a win state
+
+        Returns (bool): True if the board is in a win state
+        """
         if self.last_played == None:
             return False
         (row,col) = self.last_played
 
         def on_board(row=row, col=col, state='horizontal'):
+            """
+            Function: Check if a row and column are within the space of the board
+
+            Parameters:
+            row (int): value of the row
+            col (int): value of the column
+            state (str): specific state that needs checking ('horizontal', 'vertical', 'diagonal')
+
+            Returns (bool): True if the row and col are a valid location on the board
+            """
             horizontal = col >= 0 and col < self.w
             #print(f"on board: {horizontal}")
             vertical = row >= 0 and row < self.h
@@ -171,6 +263,11 @@ class Board:
 
 
         def is_horizontal():
+            """
+            Function: Check if a horizontal win state is present
+
+            Returns: True if a horizontal win state has been found
+            """
             n = self.game_n - 1
             symbol = self.board[row][col]
             i = 1
@@ -204,6 +301,11 @@ class Board:
 
 
         def is_vertical():
+            """
+            Function: Check if a vertical win state is present
+
+            Returns: True if a vertical win state has been found
+            """
             n = self.game_n - 1
             symbol = self.board[row][col]
             i = 1
@@ -232,6 +334,11 @@ class Board:
             return True
 
         def is_diagonal_down():
+            """
+            Function: Check if a downwards diagonal win state is present
+
+            Returns: True if a downwards diagonal win state has been found
+            """
             n = self.game_n - 1
             symbol = self.board[row][col]
             i = 1
@@ -246,6 +353,7 @@ class Board:
                             i = 1
                             left_top = False
                     else:
+                        i = 1
                         left_top = False
                 else:
                     if on_board(row=row+i,col=col+i, state='diagonal'):
@@ -258,6 +366,11 @@ class Board:
                         return n <= 0
             return True
         def is_diagonal_up():
+            """
+            Function: Check if a upwards diagonal win state is present
+
+            Returns: True if a upwards diagonal win state has been found
+            """
             n = self.game_n - 1
             symbol = self.board[row][col]
             i = 1
@@ -272,6 +385,7 @@ class Board:
                             i = 1
                             right_top = False
                     else:
+                        i = 1
                         right_top = False
                 else:
                     if on_board(row=row+i,col=col-i, state='diagonal'):
@@ -289,9 +403,28 @@ class Board:
 
 class Player:
     def __init__(self, symbol, name):
+        """
+        Function: Initialize the player object for playing a GameOfN
+
+        Parameters:
+        symbol (str): Symbol we want to associate with the player
+        name (str): Actual name of the player
+
+        Returns: None
+        """
+
         self.name = name
         self.symbol = symbol
+
     def ask(self, limit=0):
+        """
+        Function: Ask the player to choose a slot on the board of the GameOfN
+
+        Parameters:
+        limit (int): upper bound of the slots we can choose from (this should be equal to the width of the board of the GameOfN)
+
+        Returns (int): The slot chosen by the player
+        """
         slot = None
         while slot == None or (slot > BOARD_WIDTH or slot < 0):
             try:
@@ -306,38 +439,78 @@ class Player:
 # This player controller is designed for 2 players, there is no support currently for more (and that is also not necessary).
 class PlayerController:
     def __init__(self, players, board_size=(BOARD_WIDTH, BOARD_HEIGHT)):
+        """
+        Function: Initialize the PlayerController
+
+        Parameters:
+        players (list): list of Player objects available to the PlayerController for alternating between them
+        board_size (tuple): A tuple containing the width and height of the board respectively
+
+        Returns: None
+        """
         self.turn_index = 0
         self.board_size = board_size
         self.players = players
+
     def get_player(self):
+        """
+        Function: Get the current activated/moving player
+
+        Returns (Player): Player object that is to move next on the board
+        """
         return self.players[self.turn_index]
 
     def get_turn(self):
+        """
+        Function: Ask current player for a move
+
+        Returns (Player, int): A player and it's chosen move/slot
+        """
         turn = self.turn_index
         player = self.get_player()
         slot = player.ask(self.board_size[0])
 
         return player, slot
+
     def update_turn(self):
+        """
+        Function: Alternate to another player
+
+        Returns: None
+        """
         self.turn_index = 1 if self.turn_index == 0 else 0
 
 
 
 class Minimax:
     def __init__(self, board, pc, use_alphabeta=False): # state = the current state of the board of the game
+        """
+        Function: Initialize minimax object
+
+        Parameters:
+        board (two-d list): current board state from where we want to search
+        pc (PlayerController): switcher between two players that have been assigned to it.
+        (Optional) use_alphabeta (bool): Determines whether or not we want to use alphabeta pruning with the minimax algorithm
+
+        Returns: None
+        """
         self.board = board
         self.pc = pc
         self.use_alphabeta = use_alphabeta
 
     # we still need to implement the alpha beta pruning part of the algorithm
-    def dfs_for_score(self, board, pc, layer, is_max, alpha=None, beta=None, use_alphabeta=False):
+    def dfs_for_score(self, board, pc, layer=0, is_max=True, alpha=None, beta=None, use_alphabeta=False):
         """
         Computes the best choice for the player given a current board state.
 
         Parameters:
         board (two-d list): current board state from where we want to search
-        pc (PlayerController): switches between two players that have been assigned to it.
+        pc (PlayerController): switcher between two players that have been assigned to it.
         layer (int): keeps track of the depth the function is currently at recursively
+        is_max (bool): Determines if we are in a maximizing node or in a minimizing one according to the minimax algorithm and the recursively iterated game state tree
+        (Optional) alpha (int): Alpha value when alphabeta pruning method is used
+        (Optional) beta (int): Beta value when alphabeta pruning method is used
+        (Optional) use_alphabeta (bool): Determines whether or not we want to use alphabeta pruning with the minimax algorithm
 
         Returns: (int, int) First int is the best score you can get, second one is the best slot you can currently choose
         """
@@ -378,17 +551,37 @@ class Minimax:
                     return self.prune(scores, is_max)
         # either minimize or maximize depending on the player that is allowed to move
         if layer == 0:
-            print(f"Number of searches needed: {count_complexity}")
+            print(f"Number of searches needed for minimax algorithm: {count_complexity}")
             count_complexity = 0
         return self.get_best_move(scores, slots, is_max, layer)
 
     def prune(self, scores, is_max):
+        """
+        Function: Prune the search tree by returning the result based on alphabeta checks
+
+        Parameters:
+        scores (list): list with the possible scores you can get from that node.
+        is_max (bool): Determines if we are in a maximizing node or in a minimizing one according to the minimax algorithm and the recursively iterated game state tree
+
+        Returns (int): The termination score we get after pruning
+        """
         if is_max:
             return max(scores)
         else:
             return min(scores)
 
     def update_alphabeta(self, scores, alpha, beta, is_max):
+        """
+        Function: Update alpha and beta values correctly given the node type and it's best score together with current alpha and beta values.
+
+        Parameters:
+        scores (list): list with the possible scores you can get from that node.
+        alpha (int): current alpha value
+        beta (int): current beta value
+        is_max (bool): Determines if we are in a maximizing node or in a minimizing one according to the minimax algorithm and the recursively iterated game state tree
+
+        Returns (int, int, bool): (updated alpha value, updated beta value, condition whether to prune or not)
+        """
         prune = False
         if len(scores) == 0:
             return alpha, beta, prune
@@ -421,7 +614,7 @@ class Minimax:
 
     def give_score(self, is_max, board_full=False):
         """
-        Computes the score based on the player that is to move.
+        Function: Computes the score based on the player that is to move.
 
         Parameters:
         is_max (bool): Says whether or not we are in a maximizing state
@@ -439,7 +632,7 @@ class Minimax:
 
     def get_best_move(self, scores, slots, is_max, layer):
         """
-        Computes the best move to make along with it's best score when it searches through the game tree
+        Function: Computes the best move to make along with it's best score when it searches through the game tree
 
         Parameters:
         scores (list): list with the possible scores you can get from that node.
@@ -467,9 +660,11 @@ class Minimax:
 
     def get(self):
         """
-        Get the current best move according to the minimax algorithm
+        Function: Get the current best move according to the minimax algorithm
+
+        Returns (int): The best move according to the minimax algorithm
         """
-        score = self.dfs_for_score(deepcopy(self.board), deepcopy(self.pc), 0, True, use_alphabeta=self.use_alphabeta)
+        score = self.dfs_for_score(deepcopy(self.board), deepcopy(self.pc), use_alphabeta=self.use_alphabeta)
         return score[1]
 
 
@@ -508,4 +703,4 @@ if __name__ == "__main__":
     #print(minmax.update_alphabeta([1,10,11,-3], None, 3, True))
 
     # General testing
-    game = Game(Player("X", "Player2"), Player("O", "Player1"), size=(3,3), game_n=5, use_alphabeta=True)
+    game = GameOfN(Player("X", "Player2"), Player("O", "Player1"), size=(3,3), game_n=3, use_alphabeta=True)
