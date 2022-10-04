@@ -30,6 +30,7 @@ class GameOfN:
 
         Returns: None
         """
+        # initialize some class attributes
         self.players = players
         self.pc = PlayerController(players, board_size=size)
         self.game_n = game_n
@@ -37,14 +38,16 @@ class GameOfN:
         self.use_alphabeta = use_alphabeta
         self.board = Board(size, game_n=game_n)
         self.move = 0
+
+        # Generate a dynamic title class attribute which depends on the game_n parameter
         n_in_a_row = ["One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"]
-        if self.game_n <= 10:
-            self.title = f"{n_in_a_row[self.game_n-1]} In A Row"
+        if game_n <= 10:
+            self.title = f"{n_in_a_row[game_n-1]} In A Row"
         else:
             self.title = "N In A Row"
         self.board.title = self.title
         self.offset = int((self.board.w*3)/2)
-        self.title_offset = self.offset - int(len(self.title)/2)
+
         # Starting screen
         self.start()
         # Game loop
@@ -65,31 +68,39 @@ class GameOfN:
         """
         print(f"Welcome to the game!")
         print("\n")
+        # show the players info
         print(f"{self.players[0].name}: {self.players[0].symbol}")
         print(f"{self.players[1].name}: {self.players[1].symbol}")
         print("\n")
+        # show the board
         print(self.board)
 
     def next_move(self):
         """
         Function: Start a new move where another player gets to move after which the resulting board is shown
         """
+        # initialize some variables
         self.move += 1
         move_text = f"Move {self.move}:"
         move_offset = self.offset - int(len(move_text)/2)
         spaces = " "*move_offset
         succes = False
+
+        # minmax advise part for the next move
         if self.minmax:
             minmax_obj = Minimax(self.board, self.pc, use_alphabeta=self.use_alphabeta)
             if self.use_alphabeta:
                 print(f"The best choice according to the alpha beta pruning algorithm would be: {minmax_obj.get()}")
             else:
                 print(f"The best choice according to the minimax algorithm would be: {minmax_obj.get()}")
+
+        # do the actual next move by asking the player
+        # and placing it's symbol on the board
         while not succes:
             player, slot = self.pc.get_turn()
             succes = self.board.place(player, slot)
         self.pc.update_turn()
-        # maybe center move_text in the future
+        # maybe center move_text in the future (has not been done)
         print(f"\n{spaces + move_text}\n\n")
         print(self.board)
 
@@ -129,16 +140,20 @@ class Board:
         """
         Function: Give a string representation of the object for when it is printed
         """
+        # initialize some variables
         border = "-"*self.w*3
         title_offset = int(len(border)/2) - int(len(self.title)/2)
         spaces = " "*title_offset
         slots = "".join([f" {index_notation(i)} " for i in range(self.w)])
 
+        # generate title for the board
         output = spaces + self.title + "\n" + border
+        # add the actual board
         for row in range(self.h):
             output += "\n"
             for col in range(self.w):
                 output += f" {self.board[row][col]} "
+
         # add slot info with border
         output += "\n" + border + "\n" + slots + "\n"
         return output
@@ -222,6 +237,8 @@ class Board:
 
         Returns (bool): True if the board is full
         """
+        # reversed is used because this can potentially speed up the check
+        # function (symbols fall to the bottom of the board first).
         for row in reversed(range(self.h)):
             for col in range(self.w):
                 if self.board[row][col] == "~":
@@ -273,6 +290,7 @@ class Board:
             i = 1
             left = True
             while n > 0:
+                # check to the left of the last played position
                 if left:
                     if on_board(col=col-i, state='horizontal'):
                         #print(f"Check: {row} :: {col-i}")
@@ -286,6 +304,7 @@ class Board:
                     else:
                         i = 1
                         left = False
+                # check to the right of the last played position
                 else:
                     if on_board(col=col+i, state='horizontal'):
                         if self.board[row][col + i] == symbol:
@@ -311,6 +330,7 @@ class Board:
             i = 1
             top = True
             while n > 0:
+                # check above the last played position
                 if top:
                     if on_board(row=row-i, state='vertical'):
                         if self.board[row-i][col] == symbol:
@@ -322,6 +342,7 @@ class Board:
                     else:
                         i = 1
                         top = False
+                # check below the last played position
                 else:
                     if on_board(row=row+i, state='vertical'):
                         if self.board[row+i][col] == symbol:
@@ -344,6 +365,7 @@ class Board:
             i = 1
             left_top = True
             while n > 0:
+                # check to the left of the last played position
                 if left_top:
                     if on_board(row=row-i,col=col-i, state='diagonal'):
                         if self.board[row-i][col - i] == symbol:
@@ -355,6 +377,7 @@ class Board:
                     else:
                         i = 1
                         left_top = False
+                # check to the right of the last played position
                 else:
                     if on_board(row=row+i,col=col+i, state='diagonal'):
                         if self.board[row+i][col + i] == symbol:
@@ -376,6 +399,7 @@ class Board:
             i = 1
             right_top = True
             while n > 0:
+                # check to the right of the last played position
                 if right_top:
                     if on_board(row=row-i,col=col+i, state='diagonal'):
                         if self.board[row-i][col+i] == symbol:
@@ -387,6 +411,7 @@ class Board:
                     else:
                         i = 1
                         right_top = False
+                # check to the left of the last played position
                 else:
                     if on_board(row=row+i,col=col-i, state='diagonal'):
                         if self.board[row+i][col-i] == symbol:
@@ -516,7 +541,7 @@ class Minimax:
         """
         global count_complexity
         count_complexity += 1
-        # self.board.w gives the slots you can play
+        # self.board.w gives the slots you can play (it represents the width of the board)
         options = list(range(self.board.w))
         scores = list()
         slots = list()
@@ -528,6 +553,7 @@ class Minimax:
                 slots.append(option)
                 score = self.give_score(is_max)
                 scores.append(score)
+            # base case for if a draw has been reached because the board is full
             elif board.is_full():
                 slots.append(option)
                 score = self.give_score(is_max, board_full=True)
@@ -583,6 +609,7 @@ class Minimax:
         Returns (int, int, bool): (updated alpha value, updated beta value, condition whether to prune or not)
         """
         prune = False
+        # precondition for control flow
         if len(scores) == 0:
             return alpha, beta, prune
         else:
