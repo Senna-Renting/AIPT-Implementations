@@ -7,19 +7,28 @@ BOARD_WIDTH = 5
 BOARD_HEIGHT = 10
 IN_A_ROW = 4
 
+# Global variables
+count_complexity = 0
+
 # Give 1-based index or any based index in python by manipulating the base parameter
 def index_notation(index, base=1):
     return index + base
 
 class Game:
-    def __init__(self, *players, size=(BOARD_WIDTH,BOARD_HEIGHT), game_n=IN_A_ROW, minmax=True):
+    def __init__(self, *players, size=(BOARD_WIDTH,BOARD_HEIGHT), game_n=IN_A_ROW, minmax=True, use_alphabeta=False):
         self.players = players
         self.pc = PlayerController(players, board_size=size)
         self.game_n = game_n
         self.minmax = minmax
+        self.use_alphabeta = use_alphabeta
         self.board = Board(size, game_n=game_n)
         self.move = 0
-        self.title = "Four In A Row"
+        n_in_a_row = ["One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"]
+        if self.game_n <= 10:
+            self.title = f"{n_in_a_row[self.game_n-1]} In A Row"
+        else:
+            self.title = "N In A Row"
+        self.board.title = self.title
         self.offset = int((self.board.w*3)/2)
         self.title_offset = self.offset - int(len(self.title)/2)
         # Starting screen
@@ -43,9 +52,6 @@ class Game:
         print(f"{self.players[1].name}: {self.players[1].symbol}")
         print("\n")
         print(self.board)
-    def show_title(self):
-        spaces = " "*self.title_offset
-        print(spaces + self.title)
     def next_move(self):
         self.move += 1
         move_text = f"Move {self.move}:"
@@ -53,7 +59,11 @@ class Game:
         spaces = " "*move_offset
         succes = False
         if self.minmax:
-            print(f"The best choice according to the minmax algorithm would be: {Minimax(self.board, self.pc).get()}")
+            minmax_obj = Minimax(self.board, self.pc, use_alphabeta=self.use_alphabeta)
+            if self.use_alphabeta:
+                print(f"The best choice according to the alpha beta pruning algorithm would be: {minmax_obj.get()}")
+            else:
+                print(f"The best choice according to the minimax algorithm would be: {minmax_obj.get()}")
         while not succes:
             player, slot = self.pc.get_turn()
             succes = self.board.place(player, slot)
@@ -74,6 +84,7 @@ class Board:
         (self.w,self.h) = size
         self.game_n = game_n
         self.board = []
+        self.title = "Four In A Row"
         self.last_played = None # (row, col) of last played symbol
         #Create board
         for row in range(self.h):
@@ -83,12 +94,11 @@ class Board:
 
     def __str__(self):
         border = "-"*self.w*3
-        title = "Four In A Row"
-        title_offset = int(len(border)/2) - int(len(title)/2)
+        title_offset = int(len(border)/2) - int(len(self.title)/2)
         spaces = " "*title_offset
         slots = "".join([f" {index_notation(i)} " for i in range(self.w)])
 
-        output = spaces + title + "\n" + border
+        output = spaces + self.title + "\n" + border
         for row in range(self.h):
             output += "\n"
             for col in range(self.w):
@@ -314,11 +324,13 @@ class PlayerController:
 
 
 class Minimax:
-    def __init__(self, board, pc): # state = the current state of the board of the game
+    def __init__(self, board, pc, use_alphabeta=False): # state = the current state of the board of the game
         self.board = board
         self.pc = pc
+        self.use_alphabeta = use_alphabeta
 
-    def dfs_for_score(self, board, pc, layer, is_max):
+    # we still need to implement the alpha beta pruning part of the algorithm
+    def dfs_for_score(self, board, pc, layer, is_max, alpha=None, beta=None, use_alphabeta=False):
         """
         Computes the best choice for the player given a current board state.
 
@@ -329,6 +341,8 @@ class Minimax:
 
         Returns: (int, int) First int is the best score you can get, second one is the best slot you can currently choose
         """
+        global count_complexity
+        count_complexity += 1
         # self.board.w gives the slots you can play
         options = list(range(self.board.w))
         scores = list()
@@ -349,11 +363,61 @@ class Minimax:
             elif succes:
                 pc.update_turn()
                 slots.append(option)
-                scores.append(self.dfs_for_score(deepcopy(board), deepcopy(pc), layer+1, not is_max))
+                # handle alphabeta pruning choice for score generation
+                if use_alphabeta:
+                    score = self.dfs_for_score(deepcopy(board), deepcopy(pc), layer+1, not is_max, alpha, beta, use_alphabeta=True)
+                else:
+                    score = self.dfs_for_score(deepcopy(board), deepcopy(pc), layer+1, not is_max)
+                scores.append(score)
                 pc.update_turn()
                 board.undo()
+            # the alpha beta pruning part of the code
+            if use_alphabeta:
+                alpha, beta, prune = self.update_alphabeta(scores, alpha, beta, is_max)
+                if prune:
+                    return self.prune(scores, is_max)
         # either minimize or maximize depending on the player that is allowed to move
+        if layer == 0:
+            print(f"Number of searches needed: {count_complexity}")
+            count_complexity = 0
         return self.get_best_move(scores, slots, is_max, layer)
+
+    def prune(self, scores, is_max):
+        if is_max:
+            return max(scores)
+        else:
+            return min(scores)
+
+    def update_alphabeta(self, scores, alpha, beta, is_max):
+        prune = False
+        if len(scores) == 0:
+            return alpha, beta, prune
+        else:
+
+            if is_max:
+                max_score = max(scores)
+                # updating alpha value for max node
+                if alpha == None:
+                    alpha = max_score
+                elif max_score > alpha:
+                    alpha = max_score
+                # check for pruning
+                if beta != None:
+                    if max_score >= beta:
+                        prune = True
+            else:
+                min_score = min(scores)
+                # updating beta value for min node
+                if beta == None:
+                    beta = min_score
+                elif min_score < beta:
+                        beta = min_score
+                # check for pruning
+                if alpha != None:
+                    if min_score <= alpha:
+                        prune = True
+        return alpha, beta, prune
+
 
     def give_score(self, is_max, board_full=False):
         """
@@ -405,7 +469,7 @@ class Minimax:
         """
         Get the current best move according to the minimax algorithm
         """
-        score = self.dfs_for_score(deepcopy(self.board), deepcopy(self.pc), 0, True)
+        score = self.dfs_for_score(deepcopy(self.board), deepcopy(self.pc), 0, True, use_alphabeta=self.use_alphabeta)
         return score[1]
 
 
@@ -440,7 +504,8 @@ if __name__ == "__main__":
     #p1 = Player("X", "Player1")
     #p2 = Player("O", "Player2")
     #pc = PlayerController((p1,p2))
-    #Minimax(board, pc)
+    #minmax = Minimax(board, pc)
+    #print(minmax.update_alphabeta([1,10,11,-3], None, 3, True))
 
     # General testing
-    game = Game(Player("X", "Player2"), Player("O", "Player1"), size=(4,3), game_n=4, minmax=False)
+    game = Game(Player("X", "Player2"), Player("O", "Player1"), size=(3,3), game_n=5, use_alphabeta=True)
