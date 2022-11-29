@@ -1,3 +1,12 @@
+"""
+Institute: Radboud University
+Course: SEM1V (AI: Principles & Techniques)
+Student: Senna Renting (s1067489)
+Task: 1
+Date: 7 October 2022
+"""
+
+
 # Here we will implement the assignment using python as our programming language.
 
 # this module was used to support copying multidimensional lists
@@ -17,7 +26,7 @@ def index_notation(index, base=1):
     return index + base
 
 class GameOfN:
-    def __init__(self, *players, size=(BOARD_WIDTH,BOARD_HEIGHT), game_n=IN_A_ROW, minmax=True, use_alphabeta=False):
+    def __init__(self, *players, size=(BOARD_WIDTH,BOARD_HEIGHT), game_n=IN_A_ROW, minmax=True, use_alphabeta=False, max_search_depth=20):
         """
         Function: Initialize a terminal based game environment for the game Four In A Row, or N In A Row where you can choose the value of N.
 
@@ -36,6 +45,7 @@ class GameOfN:
         self.game_n = game_n
         self.minmax = minmax
         self.use_alphabeta = use_alphabeta
+        self.max_search_depth = max_search_depth
         self.board = Board(size, game_n=game_n)
         self.move = 0
 
@@ -88,7 +98,7 @@ class GameOfN:
 
         # minmax advise part for the next move
         if self.minmax:
-            minmax_obj = Minimax(self.board, self.pc, use_alphabeta=self.use_alphabeta)
+            minmax_obj = Minimax(self.board, self.pc, use_alphabeta=self.use_alphabeta, max_depth=self.max_search_depth)
             if self.use_alphabeta:
                 print(f"The best choice according to the alpha beta pruning algorithm would be: {minmax_obj.get()}")
             else:
@@ -451,12 +461,12 @@ class Player:
         Returns (int): The slot chosen by the player
         """
         slot = None
-        while slot == None or (slot > BOARD_WIDTH or slot < 0):
+        while slot == None or (slot > limit or slot < 0):
             try:
                 slot = int(input(f"What slot do you want to select {self.name}? (ex. 1, 2): ")) - 1
                 if slot > limit or slot < 0:
                     slot = None
-                    print(f"That is not on the board please choose a number between 1 and {BOARD_WIDTH}!")
+                    print(f"That is not on the board please choose a number between 1 and {limit}!")
             except:
                 print("That is not a number, please try again ")
         return slot
@@ -493,7 +503,7 @@ class PlayerController:
         """
         turn = self.turn_index
         player = self.get_player()
-        slot = player.ask(self.board_size[0])
+        slot = player.ask(limit=self.board_size[0])
 
         return player, slot
 
@@ -508,7 +518,7 @@ class PlayerController:
 
 
 class Minimax:
-    def __init__(self, board, pc, use_alphabeta=False): # state = the current state of the board of the game
+    def __init__(self, board, pc, use_alphabeta=False, max_depth=20): # state = the current state of the board of the game
         """
         Function: Initialize minimax object
 
@@ -522,14 +532,15 @@ class Minimax:
         self.board = board
         self.pc = pc
         self.use_alphabeta = use_alphabeta
+        self.max_depth = max_depth
 
     # we still need to implement the alpha beta pruning part of the algorithm
     def dfs_for_score(self, board, pc, layer=0, is_max=True, alpha=None, beta=None, use_alphabeta=False):
         """
-        Computes the best choice for the player given a current board state.
+        Function: Computes the best choice for the player given a current board state.
 
         Parameters:
-        board (two-d list): current board state from where we want to search
+        board (Board): current board state from where we want to search, along with the functionalities of the board object
         pc (PlayerController): switcher between two players that have been assigned to it.
         layer (int): keeps track of the depth the function is currently at recursively
         is_max (bool): Determines if we are in a maximizing node or in a minimizing one according to the minimax algorithm and the recursively iterated game state tree
@@ -557,6 +568,11 @@ class Minimax:
             elif board.is_full():
                 slots.append(option)
                 score = self.give_score(is_max, board_full=True)
+                scores.append(score)
+            # base case for if depth bound is reached
+            elif layer == self.max_depth:
+                slots.append(option)
+                score = 0
                 scores.append(score)
             # if a move is valid (no full slot or some other constraint)
             elif succes:
@@ -641,13 +657,13 @@ class Minimax:
 
     def give_score(self, is_max, board_full=False):
         """
-        Function: Computes the score based on the player that is to move.
+        Function: Computes the score based on the player that is to move. (this basically is a standard heuristic)
 
         Parameters:
         is_max (bool): Says whether or not we are in a maximizing state
         (Optional) board_full (bool): tells the function if the game is in a draw or not
 
-        Returns (int/(int,int)): Either gives the best score ( int ), or it gives the best score together with the move to make ( (int,int ) )
+        Returns (int): Gives right score, depending on the node type and game state
 
         """
         if board_full:
@@ -730,4 +746,4 @@ if __name__ == "__main__":
     #print(minmax.update_alphabeta([1,10,11,-3], None, 3, True))
 
     # General testing
-    game = GameOfN(Player("X", "Player2"), Player("O", "Player1"), size=(3,3), game_n=3, use_alphabeta=True)
+    game = GameOfN(Player("X", "Player2"), Player("O", "Player1"), size=(10,8), game_n=4, use_alphabeta=True, max_search_depth=7)
