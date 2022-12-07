@@ -13,14 +13,15 @@ if __name__ == '__main__':
     net = BayesNet('earthquake.bif') # Format and other networks can be found on http://www.bnlearn.com/bnrepository/
 
     # These are the variables read from the network that should be used for variable elimination
-    """print("Nodes:")
-    print(net.nodes)
-    print("Values:")
-    print(net.values)
-    print("Parents:")
-    print(net.parents)
-    print("Probabilities:")
-    print(net.probabilities)"""
+    #"""print("Nodes:")
+    #print(net.nodes)
+    #print("Values:")
+    #print(net.values)
+    #print("Parents:")
+    #print(net.parents)
+    #print("Probabilities:")
+    print(net.probabilities)
+    print("\n\n\n\n")
 
     # Make your variable elimination code in the seperate file: 'variable_elim'.
     # You use this file as follows:
@@ -37,6 +38,7 @@ if __name__ == '__main__':
     # given the network. Experimentation with different heuristics will earn bonus points. The elimination
     # ordering can for example be set as follows:
     elim_order = net.nodes
+    #print(elim_order)
 
     # Call the variable elimination function for the queried node given the evidence and the elimination ordering as follows:
     ve.run(query, evidence, elim_order)

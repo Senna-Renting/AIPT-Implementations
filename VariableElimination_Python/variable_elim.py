@@ -33,14 +33,18 @@ class VariableElimination():
                 for the query variable
 
         """
-        # store probs as factors
-        factors = [prob.copy(deep=True) for key,prob in self.network.probabilities.items()]
+        # store probs as factors (this needs work)
+        factors = self.to_factors()
+        # used as code breaker for implementing purposes
+        # return None
+        # factors = [prob.copy(deep=True) for key,prob in self.network.probabilities.items()]
 
         # ..................................
         # The variable elimination algorithm
         # ..................................
 
         # marginalizing and reducing the factors using the elimination order (elim_order)
+        print(f"elim_order: {elim_order}")
         for elim_node in elim_order:
             if elim_node in observed.keys():
                 # reduce to the values that were observed
@@ -52,7 +56,7 @@ class VariableElimination():
                     factors.pop(i)
                 # add new factors to factors list
                 factors.extend(f_have_node.copy())
-            else:
+            elif elim_node != query:
                 # marginalize the respective factors
                 f_have_node, indices = self.have_node(factors, elim_node)
                 for i,factor in enumerate(f_have_node):
@@ -63,12 +67,17 @@ class VariableElimination():
                 # add new factors to factors list
                 factors.extend(f_have_node.copy())
         # computing the product of the factors
-        product = 1
+        states = factors[0][query].unique()
+        results = [1]*len(states)
         for factor in factors:
-            product *= factor["prob"][0]
-
-        print(f"Final result: {product}")
-        print(type(product))
+            for i,state in enumerate(states):
+                results[i] *= factor[factor[query] == state]["prob"][0]
+        dict_data = dict()
+        dict_data[query] = states
+        dict_data["prob"] = results
+        result = pd.DataFrame(data=dict_data)
+        print(f"Final result: {result}")
+        return result
 
     # returns the factors and their respective indices which have the elimination node in their factor
     def have_node(self, factors, elim_node):
@@ -123,5 +132,27 @@ class VariableElimination():
         recurse_combs(factor.copy(), marg_factor, 0, list())
         return pd.concat(marg_factors)
 
-    def mult_factor(self, factor1, factor2):
-        pass
+    def to_factors(self):
+        # we use the network probabilities attribute here to convert their probabilities to factors,
+        # by multiplying out the conditional dependencies.
+        probs = self.network.probabilities
+        factors = list()
+        for key, prob in self.network.probabilities.items():
+
+            #print(f"key: {key}")
+            #print(f"prob: {prob}")
+            cols = list(prob.columns)
+            if len(cols) > 2:
+                cols.pop()
+                cols.remove(key)
+                while len(cols) > 0:
+                    df = probs[cols[-1]]
+                    values = df[cols[-1]].unique()
+                    for value in values:
+                        table1 = df[df[cols[-1]]==value]["prob"].astype(float).sum()
+                        table2 = prob[prob[cols[-1]] == value]
+                        # the loc function allows us to locally change column values based on a condition
+                        prob.loc[prob[cols[-1]] == value, "prob"] = table1*table2.prob.astype(float)
+                    cols.pop()
+                factors.append(prob)
+        return factors
