@@ -34,10 +34,12 @@ class VariableElimination():
 
         """
         # store probs as factors (this needs work)
-        factors = self.to_factors()
+        #factors = self.to_factors()
+        #print(factors)
+
         # used as code breaker for implementing purposes
-        # return None
-        # factors = [prob.copy(deep=True) for key,prob in self.network.probabilities.items()]
+        #return None
+        factors = [prob.copy(deep=True) for key,prob in self.network.probabilities.items()]
 
         # ..................................
         # The variable elimination algorithm
@@ -47,25 +49,29 @@ class VariableElimination():
         print(f"elim_order: {elim_order}")
         for elim_node in elim_order:
             if elim_node in observed.keys():
-                # reduce to the values that were observed
+                # multiply factors containing elim_node to form a single factor
                 f_have_node, indices = self.have_node(factors, elim_node)
-                for i,factor in enumerate(f_have_node):
-                    f_have_node[i] = self.reduce_factor(observed[elim_node], elim_node, factor)
+                if len(f_have_node) >= 2:
+                    f_have_node = [self.mult_factors(f_have_node, elim_node=elim_node)]
+                # reduce the factor to the values that were observed
+                f_have_node[0] = self.reduce_factor(observed[elim_node], elim_node, f_have_node[0])
                 # remove updated factors in factors list
                 for i in reversed(indices):
                     factors.pop(i)
-                # add new factors to factors list
-                factors.extend(f_have_node.copy())
+                # add new factor to factors list
+                factors.append(f_have_node[0].copy())
             elif elim_node != query:
-                # marginalize the respective factors
+                # multiply factors containing elim_node to form a single factor
                 f_have_node, indices = self.have_node(factors, elim_node)
-                for i,factor in enumerate(f_have_node):
-                    f_have_node[i] = self.margin_factor(elim_node, factor)
+                if len(f_have_node) >= 2:
+                    f_have_node = [self.mult_factors(f_have_node, elim_node=elim_node)]
+                # marginalize the respective factor
+                f_have_node[0] = self.margin_factor(elim_node, f_have_node[0])
                 # remove updated factors in factors list
                 for i in reversed(indices):
                     factors.pop(i)
-                # add new factors to factors list
-                factors.extend(f_have_node.copy())
+                # add new factor to factors list
+                factors.append(f_have_node[0].copy())
         # computing the product of the factors
         states = factors[0][query].unique()
         results = [1]*len(states)
@@ -79,7 +85,7 @@ class VariableElimination():
         print(f"Final result: {result}")
         return result
 
-    # returns the factors and their respective indices which have the elimination node in their factor
+    # returns the factors and their respective indices which have the elimination node (elim_node) in their factor
     def have_node(self, factors, elim_node):
         f_have_node = list()
         indices = list()
@@ -89,6 +95,18 @@ class VariableElimination():
                 indices.append(i)
                 f_have_node.append(factor)
         return f_have_node, indices
+
+    # function that multiplies multiple factors together on a selected variable
+    def mult_factors(self, factors, elim_node=None):
+        if elim_node != None:
+            output = factors[0]
+            for i in range(1,len(factors)):
+                output = pd.merge(output, factors[i], on=elim_node)
+                prob_cols = [column for column in output.columns if "prob" in column]
+                prob = output[prob_cols[0]]*output[prob_cols[1]]
+                output.drop(prob_cols, axis=1, inplace=True)
+                output["prob"] = prob
+            return output
 
     # reduce the factor by only selecting the given evidence (fixed_state)
     def reduce_factor(self, fixed_state, node, factor):
@@ -131,28 +149,3 @@ class VariableElimination():
         #add the data to the marginalized factor
         recurse_combs(factor.copy(), marg_factor, 0, list())
         return pd.concat(marg_factors)
-
-    def to_factors(self):
-        # we use the network probabilities attribute here to convert their probabilities to factors,
-        # by multiplying out the conditional dependencies.
-        probs = self.network.probabilities
-        factors = list()
-        for key, prob in self.network.probabilities.items():
-
-            #print(f"key: {key}")
-            #print(f"prob: {prob}")
-            cols = list(prob.columns)
-            if len(cols) > 2:
-                cols.pop()
-                cols.remove(key)
-                while len(cols) > 0:
-                    df = probs[cols[-1]]
-                    values = df[cols[-1]].unique()
-                    for value in values:
-                        table1 = df[df[cols[-1]]==value]["prob"].astype(float).sum()
-                        table2 = prob[prob[cols[-1]] == value]
-                        # the loc function allows us to locally change column values based on a condition
-                        prob.loc[prob[cols[-1]] == value, "prob"] = table1*table2.prob.astype(float)
-                    cols.pop()
-                factors.append(prob)
-        return factors
