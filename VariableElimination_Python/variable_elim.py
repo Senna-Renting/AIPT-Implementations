@@ -33,12 +33,9 @@ class VariableElimination():
                 for the query variable
 
         """
-        # store probs as factors (this needs work)
-        #factors = self.to_factors()
-        #print(factors)
-
-        # used as code breaker for implementing purposes
-        #return None
+        # ............................................................................
+        # Everything in this function is the contribution of: Senna Renting (s1067489)
+        # ............................................................................
         factors = [prob.copy(deep=True) for key,prob in self.network.probabilities.items()]
 
         # ..................................
@@ -72,12 +69,12 @@ class VariableElimination():
                     factors.pop(i)
                 # add new factor to factors list
                 factors.append(f_have_node[0].copy())
-        # computing the product of the factors
+        # Compute the product of the resulting factors
         states = factors[0][query].unique()
         results = [1]*len(states)
         for factor in factors:
             for i,state in enumerate(states):
-                results[i] *= factor[factor[query] == state]["prob"][0]
+                results[i] *= factor[factor[query] == state]["prob"].values[0]
         dict_data = dict()
         dict_data[query] = states
         dict_data["prob"] = results
@@ -86,6 +83,19 @@ class VariableElimination():
         return result
 
     # returns the factors and their respective indices which have the elimination node (elim_node) in their factor
+    """
+    @Author: Senna Renting (s1067489)
+
+    Select the factors that contain a specific random variable
+
+    Input:
+        elim_node (str): node name on which we want to match factors
+        factors (list): factors (pandas DataFrame's) to search through
+
+    Output:
+        (list, list): Two lists, first one contains the resulting factors,
+                      the second their respective indices from the input (factors parameter).
+    """
     def have_node(self, factors, elim_node):
         f_have_node = list()
         indices = list()
@@ -97,6 +107,18 @@ class VariableElimination():
         return f_have_node, indices
 
     # function that multiplies multiple factors together on a selected variable
+    """
+    @Author: Senna Renting (s1067489)
+
+    Function for multiplying two or more factors together
+
+    Input:
+        elim_node (str): random variable on which we want to multiply the factors
+        factors (list): List of factors (pandas DataFrames)
+
+    Output:
+        (pd.Dataframe): Result of multiplying multiple factors
+    """
     def mult_factors(self, factors, elim_node=None):
         if elim_node != None:
             output = factors[0]
@@ -109,9 +131,35 @@ class VariableElimination():
             return output
 
     # reduce the factor by only selecting the given evidence (fixed_state)
+    """
+    @Author: Senna Renting (s1067489)
+
+    Function to reduce a factor by the given evidence
+
+    Input:
+        fixed_state (str): evidence state to reduce on
+        node (str): random variable of which we have evidence
+        factor (pd.DataFrame): any factor that allows for reduction
+
+    Output:
+        (pd.Dataframe): A reduced factor
+    """
     def reduce_factor(self, fixed_state, node, factor):
         return factor[factor[node] == fixed_state]
+
     # marginalize out the values of a random variable (elimination node) and return the resulting factor
+    """
+    @Author: Senna Renting (s1067489)
+
+    Marginalize out the values/states of a random variable
+
+    Input:
+        node (str): random variable we want to marginalize
+        factor (pd.DataFrame): any factor that allows for marginalization
+
+    Output:
+        (pd.Dataframe): A marginalized factor
+    """
     def margin_factor(self, node, factor):
         #initialize columns of marginalized factor
         columns = list()
@@ -123,8 +171,22 @@ class VariableElimination():
         marg_factor = pd.DataFrame(list(), columns=columns)
         marg_factors = list()
         #function to recurse over the possible marginal combinations
+        """
+        Function that recursively applies the marginalize operation on each combination of the random variables
+
+        Input:
+            factor (pd.DataFrame): given factor to marginalize
+            marg_factor (pd.DataFrame): output factor after marginalization is applied
+            index (int): current considered column of the factor to marginalize on
+            combination (list): list for remembering the considered combination so far
+        Output:
+            I do not have an output for this function
+            (actually the 'marg_factor' input parameter serves as an output as well)
+
+        """
         def recurse_combs(factor, marg_factor, index, combination):
             columns = list(marg_factor.columns)
+            # remove the 'prob' column from the columns variable
             columns.pop()
             if(index == len(columns)):
                 # create a single row dataframe with the result of the marginalized combination

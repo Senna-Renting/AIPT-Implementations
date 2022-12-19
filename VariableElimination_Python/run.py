@@ -38,7 +38,7 @@ if __name__ == '__main__':
     # given the network. Experimentation with different heuristics will earn bonus points. The elimination
     # ordering can for example be set as follows:
     elim_order = net.nodes
-    #print(elim_order)
+    print(elim_order)
 
     # Call the variable elimination function for the queried node given the evidence and the elimination ordering as follows:
     ve.run(query, evidence, elim_order)
