@@ -34,7 +34,7 @@ class VariableElimination():
 
         """
         # ............................................................................
-        # Everything in this function is the contribution of: Senna Renting (s1067489)
+        # Everything inside this function is the contribution of: Senna Renting (s1067489)
         # ............................................................................
         factors = [prob.copy(deep=True) for key,prob in self.network.probabilities.items()]
 
@@ -43,38 +43,44 @@ class VariableElimination():
         # ..................................
 
         # marginalizing and reducing the factors using the elimination order (elim_order)
-        print(f"elim_order: {elim_order}")
         for elim_node in elim_order:
-            if elim_node in observed.keys():
-                # multiply factors containing elim_node to form a single factor
-                f_have_node, indices = self.have_node(factors, elim_node)
-                if len(f_have_node) >= 2:
-                    f_have_node = [self.mult_factors(f_have_node, elim_node=elim_node)]
-                # reduce the factor to the values that were observed
-                f_have_node[0] = self.reduce_factor(observed[elim_node], elim_node, f_have_node[0])
-                # remove updated factors in factors list
-                for i in reversed(indices):
-                    factors.pop(i)
-                # add new factor to factors list
-                factors.append(f_have_node[0].copy())
-            elif elim_node != query:
-                # multiply factors containing elim_node to form a single factor
-                f_have_node, indices = self.have_node(factors, elim_node)
-                if len(f_have_node) >= 2:
-                    f_have_node = [self.mult_factors(f_have_node, elim_node=elim_node)]
-                # marginalize the respective factor
-                f_have_node[0] = self.margin_factor(elim_node, f_have_node[0])
-                # remove updated factors in factors list
-                for i in reversed(indices):
-                    factors.pop(i)
-                # add new factor to factors list
-                factors.append(f_have_node[0].copy())
+            # find all factors that have the elim_node
+            f_have_node, indices = self.have_node(factors, elim_node)
+            computed_factor = None
+
+            # multiply factors containing elim_node to form a single factor
+            if len(f_have_node) >= 2:
+                computed_factor = self.mult_factors(f_have_node, elim_node=elim_node)
+
+            # precondition that there should be a factor that has the node
+            if len(f_have_node) > 0:
+                if elim_node in observed.keys():
+                    # reduce the factor to the values that were observed
+                    computed_factor = self.reduce_factor(observed[elim_node], elim_node, computed_factor)
+                elif elim_node != query:
+                    if len(f_have_node) > 0:
+                        # marginalize the respective factor
+                        if len(f_have_node) >= 2:
+                            computed_factor = self.margin_factor(elim_node, computed_factor)
+                        else:
+                            computed_factor = self.margin_factor(elim_node, f_have_node[0])
+            # remove updated factors in factors list
+            for i in reversed(indices):
+                factors.pop(i)
+            # add new factor to factors list
+            factors.append(computed_factor.copy())
         # Compute the product of the resulting factors
         states = factors[0][query].unique()
         results = [1]*len(states)
         for factor in factors:
             for i,state in enumerate(states):
                 results[i] *= factor[factor[query] == state]["prob"].values[0]
+        # Normalize the resulting probabilities
+        tot = sum(results)
+        for i, result in enumerate(results):
+            results[i] = result/tot
+
+        # Make dataframe of the result and return it
         dict_data = dict()
         dict_data[query] = states
         dict_data["prob"] = results

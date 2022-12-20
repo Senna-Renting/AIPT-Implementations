@@ -13,13 +13,13 @@ if __name__ == '__main__':
     net = BayesNet('earthquake.bif') # Format and other networks can be found on http://www.bnlearn.com/bnrepository/
 
     # These are the variables read from the network that should be used for variable elimination
-    #"""print("Nodes:")
-    #print(net.nodes)
-    #print("Values:")
-    #print(net.values)
-    #print("Parents:")
-    #print(net.parents)
-    #print("Probabilities:")
+    print("Nodes:")
+    print(net.nodes)
+    print("Values:")
+    print(net.values)
+    print("Parents:")
+    print(net.parents)
+    print("Probabilities:")
     print(net.probabilities)
     print("\n\n\n\n")
 
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     query = 'Alarm'
 
     # The evidence is represented in the following way (can also be empty when there is no evidence):
-    evidence = {'Burglary': 'True'}
+    evidence = {}
 
     # Determine your elimination ordering before you call the run function. The elimination ordering
     # is either specified by a list or a heuristic function that determines the elimination ordering
