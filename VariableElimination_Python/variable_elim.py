@@ -1,5 +1,12 @@
 """
-@Author: Joris van Vugt, Moira Berens, Leonieke van den Bulk
+Institute: Radboud University
+Course: SEM1V (AI: Principles & Techniques)
+Student: Senna Renting (s1067489)
+Task: 3
+Date: 20 December 2022
+
+This file contains a class borrowed from the following authors:
+Joris van Vugt, Moira Berens, Leonieke van den Bulk
 
 Class for the implementation of the variable elimination algorithm.
 
@@ -36,11 +43,11 @@ class VariableElimination():
         # ............................................................................
         # Everything inside this function is the contribution of: Senna Renting (s1067489)
         # ............................................................................
-        factors = [prob.copy(deep=True) for key,prob in self.network.probabilities.items()]
 
         # ..................................
         # The variable elimination algorithm
         # ..................................
+        factors = [prob.copy(deep=True) for key,prob in self.network.probabilities.items()]
 
         # marginalizing and reducing the factors using the elimination order (elim_order)
         for elim_node in elim_order:
@@ -51,6 +58,8 @@ class VariableElimination():
             # multiply factors containing elim_node to form a single factor
             if len(f_have_node) >= 2:
                 computed_factor = self.mult_factors(f_have_node, elim_node=elim_node)
+            elif len(f_have_node) > 0:
+                computed_factor = f_have_node[0]
 
             # precondition that there should be a factor that has the node
             if len(f_have_node) > 0:
@@ -64,11 +73,11 @@ class VariableElimination():
                             computed_factor = self.margin_factor(elim_node, computed_factor)
                         else:
                             computed_factor = self.margin_factor(elim_node, f_have_node[0])
-            # remove updated factors in factors list
-            for i in reversed(indices):
-                factors.pop(i)
-            # add new factor to factors list
-            factors.append(computed_factor.copy())
+                # remove updated factors in factors list
+                for i in reversed(indices):
+                    factors.pop(i)
+                # add new factor to factors list
+                factors.append(computed_factor)
         # Compute the product of the resulting factors
         states = factors[0][query].unique()
         results = [1]*len(states)
@@ -128,11 +137,12 @@ class VariableElimination():
     def mult_factors(self, factors, elim_node=None):
         if elim_node != None:
             output = factors[0]
-            for i in range(1,len(factors)):
-                output = pd.merge(output, factors[i], on=elim_node)
-                prob_cols = [column for column in output.columns if "prob" in column]
-                prob = output[prob_cols[0]]*output[prob_cols[1]]
-                output.drop(prob_cols, axis=1, inplace=True)
+            for i in range(1,len(factors)): # O(factors)
+                output = output.merge(factors[i], on=elim_node, how="left") # O(output rows)
+                # making use of pandas naming system when two columns share the same name
+                prob_cols = ["prob_x", "prob_y"]
+                prob = output[prob_cols[0]]*output[prob_cols[1]] # O(output rows)
+                output.drop(prob_cols, axis=1, inplace=True) # O(columns)
                 output["prob"] = prob
             return output
 
@@ -205,7 +215,6 @@ class VariableElimination():
                 marg_row = {columns[i]:[marg_el] for i,marg_el in enumerate(marg_row)}
                 columns.pop()
                 marg_row = pd.DataFrame(marg_row)
-                factor.drop(node, axis=1, inplace=True)
                 marg_factor = pd.concat([marg_factor,marg_row])
                 marg_factors.append(marg_row)
             else:
